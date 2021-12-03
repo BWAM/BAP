@@ -6,7 +6,7 @@
 
 The BAP package calculates Biological Assessment Profile scores according to the SMAS Biomonitoring QAPP. 
 
-Updated in 2021 to reflect new database structures and incoming data.
+To be updated in 2021 to reflect new database structures and incoming data.
 
 ## Installation
 
@@ -25,9 +25,10 @@ library(BAP)
 #Run BAP and create BAP entry for table
 library(BAP)
 
-#run BAP's data prep on the raw file, note, you will need the correct column headers, #see the template file: Mosher_Request_1_6_17.csv
+#run BAP's data prep on the raw file, note, you will need the correct column headers
+#see the template file: Mosher_Request_1_6_17.csv
 
-bap<-BAP::data_prep(prepped_df)
+new.df<-BAP::data_prep(raw.df)
 
 ## this is a function to run the correct BAP based on the collection method
 
@@ -59,8 +60,8 @@ bap.final<-bind_rows(riff_df,mp.nav_df,mp.nn_df,sandy.jab_df,ponar_df) #binds th
 .GlobalEnv$bap.final <- bap.final #makes available in teh environment
 }
 
-#split by collection method and run the appropriate BA
-bap.final<-apply_bap(bap)
+#call the function to run the scripts
+bap.final<-apply_bap(new.df)
 
 
 
