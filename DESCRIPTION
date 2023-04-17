@@ -11,12 +11,15 @@ License: What license is it under?
 LazyData: true
 Suggests:
     reshape2,
-    vegan
-RoxygenNote: 5.0.1
+    vegan,
+    testthat
+RoxygenNote: 7.1.2
 Imports: vegan,
     reshape2,
     zoo,
     plyr
-Depends: reshape2,
+Depends: 
+    R (>= 2.10),
+    reshape2,
     vegan,
     zoo
