@@ -5,7 +5,7 @@
 #read in the new table
 library(dplyr)
 library(tidyverse)
-master_updated<-read.csv("C:/Users/kareynol/New York State Office of Information Technology Services/SMAS - Streams Data Modernization/Cleaned Files/Final_Macro_ITS/20210617_S_MSTR_MACRO_SPECIES.csv")
+master_updated<-read.csv("C:/Users/zmsmith.000/New York State Office of Information Technology Services/SMAS - Streams Data Modernization/Cleaned Files/Final_Macro_ITS/20210617_S_MSTR_MACRO_SPECIES.csv")
 #take out the uneccessary prefixes
 
 master_updated<-master_updated %>%
