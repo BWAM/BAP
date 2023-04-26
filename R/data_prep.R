@@ -92,7 +92,7 @@ group_rich <- function(NameList, taxa.df){
 #'
 wide <- function (Long, Level) {
   agg <- aggregate(REPORTING_VALUE ~ EVENT_ID + LOCATION + RIVMILE +
-                     BASIN + DATE + Long[, colnames(Long) == Level],
+                     BASIN + DATE + Long[, Level],
                    data = Long, FUN = sum, na.rm = TRUE)
   colnames(agg) <- c("EVENT_ID", "LOCATION", "RIVMILE", "BASIN",
                      "DATE", Level, "REPORTING_VALUE")
@@ -191,6 +191,14 @@ taxa_prep3 <- function(taxa.df){
 #'@export
 
 data_prep <- function(taxa.df){
+  stopifnot(
+    "No NA's allowed in the 'LOCATION' column." = !any(is.na(taxa.df$LOCATION)),
+    "No NA's allowed in the 'RIVMILE' column." = !any(is.na(taxa.df$RIVMILE)),
+    "No NA's allowed in the 'BASIN' column." = !any(is.na(taxa.df$BASIN)),
+    "No NA's allowed in the 'COLL_DATE' column." = !any(is.na(taxa.df$COLL_DATE)),
+    "No NA's allowed in the 'INDIV' column." = !any(is.na(taxa.df$INDIV))
+    )
+
   prep.df <- event_prep(taxa.df)
   taxa.df <- taxa_prep(prep.df)
   final.df <- merge(taxa.df, BAP::master, by = "FINAL_ID", all.x = T)
