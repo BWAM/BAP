@@ -7,7 +7,9 @@
 
 bap_ponar <- function(long){
 
-  final_id.df <- wide(long, "FINAL_ID")
+  final_id.df <- wide(
+    Long = long,
+    Level = "FINAL_ID")
   # Create a new data frame to store metrics
   metrics <- data.frame(unique(final_id.df[, 1:5]))
   #==============================================================================
@@ -16,7 +18,10 @@ bap_ponar <- function(long){
   metrics$RICH_SCORE <- score_rich_ponar(metrics)
   #==============================================================================
   # Hilsenhoff's Biotic Index (HBI)
-  metrics$HBI <- tol_index(long, Index = "TOLERANCE", Level = "FINAL_ID")
+  metrics$HBI <- tol_index(
+    Long = long,
+    Index = "TOLERANCE",
+    Level = "FINAL_ID")
   metrics$HBI_SCORE <- score_hbi_ponar(metrics)
   #==============================================================================
   # Percent Model Affinity (PMA)
