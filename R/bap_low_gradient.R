@@ -46,5 +46,5 @@ bap_low_gradient <- function(Long) {
   metrics$FINAL_SCORE <- apply(metrics[, which(grepl("SCORE", names(metrics)))], 1, FUN = mean)
   # Round to the hundredths place
   metrics$FINAL_SCORE <- round(metrics$FINAL_SCORE, digits = 2)
-
+  return(metrics)
 }

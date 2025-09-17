@@ -7,9 +7,9 @@
 ept_rich(Long, Level)
 }
 \arguments{
-\item{Long}{= Taxonomic count data in a long data format.}
+\item{Long}{Taxonomic count data in a long data format.}
 
-\item{Level}{= Must specify either 'FAMILY' or "GENUS.'}
+\item{Level}{Typically, "FINAL_ID".}
 }
 \value{
 The number of Ephemeroptera, Plecoptera, and Trichoptera (EPT)

@@ -90,7 +90,7 @@ group_rich <- function(NameList, taxa.df){
 #'@return Taxa counts in wide data format.
 #'@export
 #'
-wide <- function (Long, Level) {
+wide <- function(Long, Level) {
   agg <- aggregate(REPORTING_VALUE ~ EVENT_ID + LOCATION + RIVMILE +
                      BASIN + DATE + Long[, Level],
                    data = Long, FUN = sum, na.rm = TRUE)
@@ -201,7 +201,9 @@ data_prep <- function(taxa.df){
 
   prep.df <- event_prep(taxa.df)
   taxa.df <- taxa_prep(prep.df)
-  final.df <- merge(taxa.df, BAP::master, by = "FINAL_ID", all.x = T)
+  data("master")
+  master_taxa_list <- unique(subset(BAP::master, select = -REFERENCE))
+  final.df <- merge(taxa.df, master_taxa_list, by = "FINAL_ID", all.x = T)
   final.df <- final.df[order(final.df$EVENT_ID), ]
   return(final.df)
 }
