@@ -39,5 +39,8 @@ bap_riffle <- function(Long){
   # Round to the hundredths place
   metrics$FINAL_SCORE <- round(metrics$FINAL_SCORE, digits = 2)
 
+  # Sample Method -----------------------------------------------------------
+  metrics$SAMPLE_METHOD <- "kick_standard"
+
   return(metrics)
 }
