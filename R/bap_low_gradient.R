@@ -44,6 +44,12 @@ bap_low_gradient <- function(Long) {
 # Calculate BAP Score -----------------------------------------------------
   # Find the mean score of all the metrics for each sample
   metrics$FINAL_SCORE <- apply(metrics[, which(grepl("SCORE", names(metrics)))], 1, FUN = mean)
+
+  metrics$FINAL_SCORE  <- ifelse(
+    test = metrics$FINAL_SCORE > 10,
+    yes = 10,
+    no = ifelse(test = metrics$FINAL_SCORE < 0, yes = 0, no = metrics$FINAL_SCORE)
+  )
   # Round to the hundredths place
   metrics$FINAL_SCORE <- round(metrics$FINAL_SCORE, digits = 2)
   # Sample Method -----------------------------------------------------------

@@ -10,4 +10,8 @@ test_that("metrics are calcualted correctly", {
   expect_equal(percent_composition(Long, Level = "FEEDINGHAB", target_taxa = "test"), 0)
   expect_equal(shannon_diversity(Long, Level = "FINAL_ID", target_taxa_col = "FEEDINGHAB", target_taxa = "SHREDDER"), 0)
   expect_equal(shannon_diversity(Long, Level = "FINAL_ID", target_taxa_col = "FEEDINGHAB", target_taxa = "test"), 0)
+
+  t1 <- bap_low_gradient(Long = Long)
 })
+
+
