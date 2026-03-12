@@ -25,7 +25,7 @@ tol_index <- function(Long, Index = "TOLERANCE", Level = "SAMPLES_GENUS_SPECIES"
   new2 <- aggregate(REPORTING_VALUE ~ EVENT_ID,
                     FUN = sum, na.rm = TRUE, data = tol_am)
 
-  merged <- merge(new, new2, by ="EVENT_ID")
+  merged <- merge(new, new2, by = "EVENT_ID")
 
   merged$FINAL <- merged$MULT / merged$REPORTING_VALUE
 
