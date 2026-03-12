@@ -1,0 +1,604 @@
+---
+title: "Investigation and Impact of PMA and NCO Calculation Errors"
+author: "Zachary M. Smith"
+format: html
+editor: visual
+---
+
+## Executive Summary
+
+## Summary of the Issue
+
+On 3/10/2026, Scott George (USGS) emailed ([Subject]{.underline}: Bad News) Keleigh Reynolds and Zachary Smith about an issue with the ponar PMA scores.
+
+> It seems to me that the script that summarizes the taxes into the groups shown in the table below ([https://rdrr.io/github/zsmith27/BAP/src/R/pma.R](https://gcc02.safelinks.protection.outlook.com/?url=https%3A%2F%2Frdrr.io%2Fgithub%2Fzsmith27%2FBAP%2Fsrc%2FR%2Fpma.R&data=05%7C02%7CZachary.Smith2%40dec.ny.gov%7Ceb6eca514b5c4f0c1a7d08de7f0e751e%7Cf46cb8ea79004d108ceb80e8c1c81ee7%7C0%7C0%7C639087897257987162%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=irT7LG5nrUsHM0aHbbTE92kjB5rbAtZrPPejJ2YvV9Y%3D&reserved=0 "Original URL: https://rdrr.io/github/zsmith27/BAP/src/R/pma.R. Click or tap if you trust this link.")) isn’t capturing all the taxa that it should - specifically within Oligochaeta and Crustacea (relevant to ponar BAP). I think this relates to the term oligocaheta no longer being used in the long.df dataframe and to either looking for the crustacea either in the wrong column (or perhaps that term is entirely gone). – Scott
+
+## Root Cause Analysis
+
+Zachary confirmed there was an issue in `pma()`, `pma_ponar()`, and `nco_richnes()`. The issue was due these functions looking for the classes (`CLASS`) Oligochaeta (`OLIGOCHAETA`) and Crustacea (`CRUSTACEA`) but those classes had been changed in the master taxa list (`BAP::master`) to Clitellata (`CLITELLATA`) and Malacostraca (`MALACOSTRACA`), respectively.
+
+`pma()`, `pma_ponar()`, and `nco_rich()` are not functions typically used directly by BAP package users. These functions are called when BAP users are using functions in the BAP package that start with `bap_`, which calculate all metrics and scores for a BAP. The issue with `pma()`, `pma_ponar()`, and `nco_richnes()` impacts the following `bap_` functions:
+
+1.  `bap_riffle()`: impacted by `pma()`
+
+2.  `bap_ponar()`: impacted by `pma_ponar()`
+
+3.  `bap_jab()`: impacted by `nco_rich()`
+
+This issue was not caught earlier because the change to `BAP::master` did not cause any errors. The `pma()`, `pma_ponar()`, and `nco_rich()` functions continued to produce results but there was no manual confirmation of results or unit tests in place to identify the issue.
+
+### Investigation Technique
+
+A manual review of `BAP::master`, made it was quickly apparent that classes (`CLASS`) Oligochaeta (`OLIGOCHAETA`) and Crustacea (`CRUSTACEA`) no longer existed and had been replaced with Clitellata (`CLITELLATA`) and Malacostraca (`MALACOSTRACA`), respectively.
+
+Zachary used `git checkout <commit>` in the RStudio terminal to go back to previous states of the BAP package. Within each state:
+
+1.  The BAP package was reloaded using `devtools::load()`
+
+2.  The following code was used to see if the class Oligochaeta existed in `BAP::master`:\
+    `dplyr::filter(BAP::master, CLASS == "OLIGOCHAETA")`. If class Oligochaeta did not exist, it indicated that the change to `BAP::master` must have occurred in an earlier commit.
+
+This process was repeated until class Oligochaeta appeared in `BAP::master`. When class Oligochaeta was present in `BAP::master`, the `pma()`, `pma_ponar()`, and `nco_rich()` are assumed to have been working correctly because the names these functions were pointing to (i.e., `OLIGOCHAETA` and `CRUSTACEA`) existed in `BAP::master`.
+
+The change occurred at commit `7ffab92` on April 17th, 2023. Oligochaeta was present in BAP::master in the commit prior to `7ffab92`, `8f0c293` (July 7th, 2018).
+
+This investigation was done in Zachary's personal GitHub (<https://github.com/zsmith27/BAP>) because the BAP repository in the BWAM GitHub Organization is a fork of Zachary's original repository and the BWAM fork does not contain the commit history necessary to confirm when the change to `BAP::master` occurred.
+
+## Changes Made
+
+The following modifications were made to the BAP package to ensure the correct taxa were being referenced during calculations:
+
+1.  `pma()` : `pct_taxon("CLITELLATA", "CLASS", long)` replaced `pct_taxon("OLIGOCHAETA", "CLASS", long).`
+
+2.  `pma_ponar()`:
+
+    -   `pct_taxon("CLITELLATA", "CLASS", long)` replaced `pct_taxon("OLIGOCHAETA", "CLASS", long);`
+
+    -   `pct_taxon("MALACOSTRACA", "CLASS", long)` replaced `pct_taxon("CRUSTACEA", "CLASS", long)`
+
+3.  `nco_rich()`: `taxa.list_o <- unique(CLASS$CLITELLATA)` replaced ``` taxa.list_o <- unique(CLASS$``OLIGOCHAETA``) ```
+
+Unit tests were added for these functions (BAP/tests/testthat). These tests provide the expected results from each function. The use of unit tests should result in future changes to data or BAP functions that modify the expected output to be caught immediately.
+
+## Summary of Impact
+
+## Guidance for Users
+
+Anyone who used the BAP package to derive metric and BAP scores for the kick BAP in riffle habitats (`bap_riffle()`), the ponar BAP in soft sediments (`bap_ponar()`), and the kick BAP in sandy streams (`bap_jab()`) between April 17th, 2023 and March 12th, 2026 will need to rerun the BAP calculations.
+
+## Lessons Learned
+
+The primary lesson learned is that validation steps need to be put in place to ensure accurate results. Although unit tests take time to develop they help to prevent bigger issues in the future. If unit tests were in place for these functions, the error would most likely have been caught immediately, rather than years later. Additionally, it is recommended that DEC staff manually calculate metrics and BAP scores for a minimum of 5 samples each year. These calculations will help to uncover issues not covered by the unit tests and have the added bonus of teaching staff how these calculations are performed.
+
+## Appendix I
+
+```{r}
+# Load dependencies---------------------------------------------------
+library(arrow)
+library(dplyr)
+library(lubridate)
+library(stringr)
+library(tidyr)
+
+# Load the BAP package.
+devtools::load_all()
+
+# Establish directories-----------------------------------------------
+# Main parquet directory
+dir <- obt_result_dir <- file.path("L:", "DOW", "BWAM Share", "data", "parquet")
+
+# Analytical parquet directory (OBT stores)
+analytical_dir <- file.path(dir, "analytical_table_store")
+
+# Build table parquet directory (individual tables stores)
+build_dir <- file.path(dir, "build_tables")
+
+# Previous Values and Scores------------------------------------------
+previous_df <- file.path(analytical_dir, "obt_result.parquet") |> 
+  open_dataset() |> 
+  # filter(PARAMETER_NAME %in% c("bap_biological_assessment_profile",
+  #                              "percent_model_affinity",
+  #                              "non_chiro_oligo_richness")) |> 
+  distinct(EVENT_ID,
+           EVENT_DATETIME,
+           REPLICATE,
+           SAMPLE_METHOD,
+           PARAMETER_NAME,
+           RESULT_VALUE,
+           UNIT) |> 
+  rename(PREVIOUS_RESULT_VALUE = RESULT_VALUE) |> 
+  collect()
+
+# Taxa Abundance------------------------------------------------------
+abundance_df <- file.path(analytical_dir, "obt_taxa_abundance.parquet") |> 
+  open_dataset() |> 
+  # Target just the methods impacted.
+  filter(SAMPLE_METHOD %in% c("kick_sandy-stream",
+                              "kick_standard",
+                              "sediment_ponar")) |> 
+  # Excluding this sample because counts are low and the taxa present have no NBI_P value, which causes a calculation issue.
+  filter(EVENT_ID != "11-ADKS11_2010-0.3_20110810T1529",
+         # These EVENT_IDs need to be excluded because they are listed as having multiple SAMPLING_METHODS.
+  #        !EVENT_ID %in%  c("04-GENS-10.5_19930714T1010",
+  # "04-GENS-12.3_19930714T1140",
+  # "04-GENS-2.6_19930713T0830",
+  # "04-GENS-3.7_19930713T1255",
+  # "04-GENS-4.7_19930713T0445",
+  # "05-CHEM-15.7_19840724T1030",
+  # "05-CHEM-22.9_19840724T1130",
+  # "05-COHO-1.4_19840724T0240",
+  # "06-SUSQ-25.2_19840723T1400",
+  # "06-SUSQ-28.1_19850829T0000",
+  # "06-SUSQ-29.9_19850829T0000",
+  # "06-SUSQ-3.8_19840723T1200",
+  # "06-SUSQ-43.1_19840723T1100",
+  # "08-BLCK-47.6_19970819T1100",
+  # "08-BLCK-76.5_19970819T0955",
+  # "09-INDN-33.7_19870812T0000",
+  # "09-INDN-37.7_19870812T0000",
+  # "09-REGI-2.7_20170816T1358",
+  # "09-REGI-2.7_20190814T1327",
+  # "09-REGI-2.8_20170816T1501",
+  # "09-REGI-2.8_20190814T1754",
+  # "09-REGI-7.8_20170816T0941",
+  # "09-REGI-7.8_20190814T1438")
+  ) |> 
+  # Keep and rename only the columns
+  select(
+    FINAL_ID = TAXON_ID,
+    EVENT_ID,
+    LOCATION = WATERBODY_CODE,
+    RIVMILE = LOCATION,
+    BASIN,
+    DATE = EVENT_DATETIME,
+    SAMPLE_NUMBER = REPLICATE,
+    SAMPLE_METHOD,
+    REPORTING_VALUE = RESULT_VALUE,
+    PHYLUM = T_PHYLUM,
+    CLASS = T_CLASS,
+    ORDER = T_ORDER,
+    FAMILY = T_FAMILY,
+    SUBFAMILY = T_SUBFAMILY,
+    GENUS = T_GENUS,
+    SPECIES = T_SPECIES
+  ) |> 
+  mutate(
+    EVENT_ID = paste0(EVENT_ID, "_", SAMPLE_NUMBER),
+    DATE = as.Date(DATE),
+    across(c(FINAL_ID,
+             PHYLUM,
+             CLASS, 
+             ORDER, 
+             FAMILY, 
+             SUBFAMILY, 
+             GENUS, 
+             SPECIES), toupper)
+    ) |> 
+  collect() |> 
+  mutate(
+    across(c(PHYLUM,
+             CLASS, 
+             ORDER, 
+             FAMILY, 
+             SUBFAMILY, 
+             GENUS, 
+             SPECIES), ~na_if(.x, "NOT_APPLICABLE"))
+  ) |> 
+  filter(DATE > as.Date("2010-01-01")) |> 
+  mutate(
+    CLASS = coalesce(CLASS, PHYLUM),
+    ORDER = coalesce(ORDER, CLASS),
+    FAMILY = coalesce(FAMILY, ORDER),
+    SUBFAMILY = coalesce(SUBFAMILY, FAMILY),
+    GENUS = coalesce(GENUS, SUBFAMILY),
+    SPECIES = coalesce(SPECIES, GENUS)
+  )
+
+traits_df <- file.path(build_dir, "TAXONOMIC_TRAIT.parquet") |> 
+  open_dataset() |> 
+  collect() |> 
+  pivot_wider(
+    names_from = TRAIT_NAME,
+    values_from = c(TRAIT_CATEGORY, TRAIT_VALUE)
+  ) |> 
+  select(
+    FINAL_ID = TAXON_ID,
+    FEEDINGHAB = TRAIT_CATEGORY_functional_feeding_group,
+    TOLERANCE = TRAIT_VALUE_tolerance_hbi,
+    NBI_P_TOLERANCE = TRAIT_VALUE_tolerance_nbi_phosphorus,
+    NBI_N_TOLERANCE = TRAIT_VALUE_tolerance_nbi_nitrate
+  ) |> 
+  mutate(
+    FINAL_ID = toupper(FINAL_ID),
+    FEEDINGHAB = na_if(FEEDINGHAB, "NOT_APPLICABLE")
+    
+  )
+
+prep_df <- left_join(
+  x = abundance_df,
+  y = traits_df,
+  by = "FINAL_ID"
+) |> 
+  data.frame()
+
+new_list <- unique(prep_df$SAMPLE_METHOD) |> 
+  purrr::map(function(i) {
+    sub_df <- prep_df |> 
+      filter(SAMPLE_METHOD == i)
+    
+    switch(
+      i,
+      "kick_sandy-stream" = bap_jab(Long = sub_df),
+      "kick_standard" = bap_riffle(Long = sub_df),
+      "sediment_ponar" = bap_ponar(long = sub_df)
+    )
+  })
+
+new_df <- new_list |> 
+  purrr::list_rbind() |> 
+  pivot_longer(
+    cols = c("RICHNESS", "RICH_SCORE",
+             "EPT_RICH", "EPT_SCORE",
+             "HBI", "HBI_SCORE",
+             "PMA", "PMA_SCORE",
+             "NBI_P", "NBI_P_SCORE",
+             "NCO_RICH", "NCO_RICH_SCORE",
+             "FINAL_SCORE"
+             ),
+    names_to = "PARAMETER_NAME",
+    values_to = "RESULT_VALUE"
+  ) |> 
+  mutate(
+    UNIT = case_when(
+      grepl("SCORE", PARAMETER_NAME) ~ "score_0-10",
+      .default = "raw"
+    ),
+    PARAMETER_NAME = replace_values(
+      PARAMETER_NAME,
+     "EPT_RICH" ~ "ept_richness",
+     "EPT_SCORE" ~ "ept_richness",
+     "FINAL_SCORE" ~ "bap_biological_assessment_profile",
+     "HBI" ~ "hilsenhoff_biotic_index",
+     "HBI_SCORE" ~ "hilsenhoff_biotic_index",
+     "NBI_P" ~ "nutrient_biotic_index_phosphorus",
+     "NBI_P_SCORE" ~ "nutrient_biotic_index_phosphorus",
+     "NCO_RICH" ~ "non_chiro_oligo_richness",
+     "NCO_RICH_SCORE" ~ "non_chiro_oligo_richness",
+     "PMA" ~ "percent_model_affinity",
+     "PMA_SCORE" ~ "percent_model_affinity",
+     "RICH_SCORE" ~ "richness",
+     "RICHNESS" ~ "richness"
+    )
+  ) |> 
+  select(
+    EVENT_ID,
+    SAMPLE_METHOD,
+    PARAMETER_NAME,
+    CORRECTED_RESULT_VALUE = RESULT_VALUE,
+    UNIT
+  ) |> 
+  mutate(
+    REPLICATE = str_extract(EVENT_ID, "(?<=_)\\d$"),
+    EVENT_ID = str_remove(EVENT_ID, "_[0-9]$")
+  )
+
+
+val_df <- inner_join(
+  x = previous_df,
+  y = new_df,
+  by = c("EVENT_ID", "REPLICATE", "SAMPLE_METHOD", "PARAMETER_NAME", "UNIT")
+) |> 
+  mutate(DIFF = CORRECTED_RESULT_VALUE - PREVIOUS_RESULT_VALUE) |> 
+  mutate(YEAR = year(EVENT_DATETIME))
+
+diff_df <- val_df |> 
+  mutate(YEAR = year(EVENT_DATETIME)) |> 
+  filter(abs(DIFF) > 0.1)
+
+annual_summary_df <- val_df |> 
+  summarize(
+    MIN = round(min(DIFF), 2),
+    MEAN = round(mean(DIFF), 2),
+    SD = round(sd(DIFF), 2),
+    MAX = round(max(DIFF), 2),
+    .by = c(YEAR, SAMPLE_METHOD, PARAMETER_NAME, UNIT)
+  )
+
+summary_df <- val_df |> 
+  summarize(
+    MIN = round(min(DIFF), 2),
+    MEAN = round(mean(DIFF), 2),
+    SD = round(sd(DIFF), 2),
+    MAX = round(max(DIFF), 2),
+    .by = c(SAMPLE_METHOD, PARAMETER_NAME, UNIT)
+  )
+
+summary_since_2023 <- val_df |> 
+  filter(YEAR > 2022) |> 
+  summarize(
+   MIN = round(min(DIFF), 2),
+    MEAN = round(mean(DIFF), 2),
+    SD = round(sd(DIFF), 2),
+    MAX = round(max(DIFF), 2),
+    .by = c(SAMPLE_METHOD, PARAMETER_NAME, UNIT)
+  )
+```
+
+## Appendix II
+
+```{r}
+library(dplyr)
+library(readr)
+library(stringr)
+library(tidyr)
+
+devtools::load_all()
+
+dir <- "L:/DOW/BWAM Share/data/projects/BAP_investigation_of_pma_nco_error/scott_george_2021"
+
+raw_df <- read_csv(file.path(dir, "InputIDs_ForR_3-6-21.csv"),
+                   col_types = cols(
+  BASIN = col_double(),
+  LOCATION = col_character(),
+  RIVMILE = col_double(),
+  COLLECT = col_double(),
+  Replicate = col_double(),
+  COLL_DATE = col_character(), #col_date(format = "%m/%d/%Y"),
+  MACRO_GENSPECIES = col_character(),
+  INDIV = col_double()
+))
+
+prep_df <- data_prep(taxa.df = raw_df)
+
+new_metrics <- bap_ponar(long = prep_df)
+
+new_long <- new_metrics |> 
+  pivot_longer(
+    cols = -c("EVENT_ID", "LOCATION", "RIVMILE", "BASIN", "DATE", "SAMPLE_METHOD"),
+    names_to = "PARAMETER_NAME",
+    values_to = "NEW_RESULT_VALUE"
+  )
+
+old_metrics <- read_csv(file.path(dir, "metrics_3-6-21.csv"),
+                        col_types = cols(
+  EVENT_ID = col_character(),
+  LOCATION = col_character(),
+  DATE = col_character(), #col_date(format = "%m/%d/%Y"),
+  RICHNESS = col_double(),
+  RICH_SCORE = col_double(),
+  HBI = col_double(),
+  HBI_SCORE = col_double(),
+  PMA = col_double(),
+  PMA_SCORE = col_double(),
+  SHANNON = col_double(),
+  SHANNON_SCORE = col_double(),
+  PCT_DOM3 = col_double(),
+  PCT_DOM3_SCORE = col_double(),
+  FINAL_SCORE = col_double()
+))
+
+old_long <- old_metrics |> 
+  pivot_longer(
+    cols = -c("EVENT_ID", "LOCATION",  "DATE"),
+    names_to = "PARAMETER_NAME",
+    values_to = "OLD_RESULT_VALUE"
+  ) 
+
+comb_df <- full_join(
+  x = old_long,
+  y = new_long,
+  by = join_by(EVENT_ID, LOCATION, DATE, PARAMETER_NAME)
+) |> 
+  mutate(
+    DIFF = OLD_RESULT_VALUE - NEW_RESULT_VALUE
+  ) 
+
+diff_df <- comb_df |> 
+  filter(
+    abs(DIFF) >= 0.1
+  )
+
+pma_1 <- diff_df |> 
+  filter(
+    EVENT_ID == "1_BRC1-4D_1_6/24/2020_1",
+    PARAMETER_NAME == "PMA"
+  )
+
+manual_1 <- prep_df |> 
+  filter(EVENT_ID == "1_BRC1-4D_1_6/24/2020_1") |> 
+  mutate(
+    GROUP = case_when(
+      str_detect(FAMILY, "CHIRONOMIDAE") ~ "chironomidae",
+      str_detect(ORDER, "LUMBRICULIDA|TUBIFICIDA") ~ "oligochaeta",
+      str_detect(PHYLUM, "MOLLUSCA") ~ "mollusca",
+      str_detect(CLASS, "MALACOSTRACA") ~ "crustacea",
+      str_detect(CLASS, "INSECTA") & !str_detect(FAMILY, "CHIRONOMIDAE") ~ "non_chiro_insecta",
+      .default = "other"
+    ),
+    GROUP = factor(GROUP, levels = c("chironomidae", "oligochaeta", "mollusca", "crustacea",
+                                     "non_chiro_insecta", "other")),
+    TOTAL = sum(REPORTING_VALUE),
+    .before = everything()
+  ) 
+
+summary_1 <- manual_1 |> 
+  summarize(
+    PCT = sum(REPORTING_VALUE) / unique(TOTAL) * 100,
+    .by = GROUP
+  )
+
+20 + 20 + 2 + 2 + 0 + 0
+
+pma_2 <- comb_df |> 
+  filter(
+    EVENT_ID == "1_brc-core-1_1_6/24/2019_1",
+    PARAMETER_NAME == "PMA"
+  )
+
+manual_2 <- prep_df |> 
+  filter(EVENT_ID == "1_brc-core-1_1_6/24/2019_1") |> 
+  mutate(
+    GROUP = case_when(
+      str_detect(FAMILY, "CHIRONOMIDAE") ~ "chironomidae",
+      str_detect(ORDER, "LUMBRICULIDA|TUBIFICIDA") ~ "oligochaeta",
+      str_detect(PHYLUM, "MOLLUSCA") ~ "mollusca",
+      str_detect(CLASS, "MALACOSTRACA") ~ "crustacea",
+      str_detect(CLASS, "INSECTA") & !str_detect(FAMILY, "CHIRONOMIDAE") ~ "non_chiro_insecta",
+      .default = "other"
+    ),
+    GROUP = factor(GROUP, levels = c("chironomidae", "oligochaeta", "mollusca", "crustacea",
+                                     "non_chiro_insecta", "other")),
+    TOTAL = sum(REPORTING_VALUE),
+    .before = everything()
+  ) 
+
+(summary_2 <- manual_2 |> 
+  summarize(
+    PCT = sum(REPORTING_VALUE) / unique(TOTAL) * 100,
+    .by = GROUP
+  ))
+
+20 + 20 
+
+(t3 <- prep_df |> 
+  mutate(GROUP = ifelse(
+    FAMILY == "CHIRONOMIDAE" | ORDER %in% c("LUMBRICULIDA", "TUBIFICIDA"),
+    "oligo_chiro",
+    "other"
+  )) |> 
+  mutate(
+    TOTAL = sum(REPORTING_VALUE),
+    .by = "EVENT_ID"
+  ) |> 
+  summarize(
+    TOTAL = unique(TOTAL),
+    CHIRO = sum(REPORTING_VALUE) / TOTAL * 100,
+    .by = c(EVENT_ID, GROUP)
+  ) |> 
+    filter(GROUP == "oligo_chiro"))
+```
+
+## Appendix III
+
+```{r}
+library(dplyr)
+library(readr)
+library(stringr)
+library(tidyr)
+
+devtools::load_all()
+
+dir <- "L:/DOW/BWAM Share/data/projects/BAP_investigation_of_pma_nco_error/scott_george_2022"
+
+raw_df <- read_csv(file.path(dir, "InputIDs_ForR_7-16-22.csv"),
+                   col_types = cols(
+  BASIN = col_double(),
+  LOCATION = col_character(),
+  RIVMILE = col_double(),
+  COLLECT = col_double(),
+  Replicate = col_double(),
+  COLL_DATE = col_character(), #col_date(format = "%m/%d/%Y"),
+  MACRO_GENSPECIES = col_character(),
+  INDIV = col_double()
+))
+
+prep_df <- data_prep(taxa.df = raw_df)
+
+new_metrics <- bap_ponar(long = prep_df)
+
+new_long <- new_metrics |> 
+  pivot_longer(
+    cols = -c("EVENT_ID", "LOCATION", "RIVMILE", "BASIN", "DATE", "SAMPLE_METHOD"),
+    names_to = "PARAMETER_NAME",
+    values_to = "NEW_RESULT_VALUE"
+  )
+
+old_metrics <- read_csv(file.path(dir, "metrics_7-16-22.csv"),
+                        col_select = -c(...1),
+                        col_types = cols(
+  ...1 = col_double(),
+  EVENT_ID = col_character(),
+  LOCATION = col_character(),
+  RIVER = col_character(),
+  RIVMILE = col_double(),
+  BASIN = col_double(),
+  DATE = col_character(),
+  RICHNESS = col_double(),
+  RICH_SCORE = col_double(),
+  HBI = col_double(),
+  HBI_SCORE = col_double(),
+  PMA = col_double(),
+  PMA_SCORE = col_double(),
+  SHANNON = col_double(),
+  SHANNON_SCORE = col_double(),
+  PCT_DOM3 = col_double(),
+  PCT_DOM3_SCORE = col_double(),
+  FINAL_SCORE = col_double()
+)
+)
+
+old_long <- old_metrics |> 
+  pivot_longer(
+    cols = -c("EVENT_ID", "LOCATION",  "DATE", "RIVER", "RIVMILE", "BASIN"),
+    names_to = "PARAMETER_NAME",
+    values_to = "OLD_RESULT_VALUE"
+  ) 
+
+comb_df <- full_join(
+  x = old_long,
+  y = new_long,
+  by = join_by(EVENT_ID, LOCATION, DATE, PARAMETER_NAME)
+) |> 
+  mutate(
+    DIFF = OLD_RESULT_VALUE - NEW_RESULT_VALUE
+  ) 
+
+diff_df <- comb_df |> 
+  filter(
+    abs(DIFF) >= 0.1
+  )
+
+with_diff <- comb_df |> 
+  filter(
+    EVENT_ID %in% c("1_emil-0.6_1_8/3/2021_1", "1_oak-5.9_1_8/5/2021_2")
+  )
+
+pma_1 <- diff_df |> 
+  filter(
+    EVENT_ID == "1_emil-0.6_1_8/3/2021_1",
+    PARAMETER_NAME == "PMA"
+  )
+
+manual_1 <- prep_df |> 
+  filter(EVENT_ID == "1_emil-0.6_1_8/3/2021_1") |> 
+  mutate(
+    GROUP = case_when(
+      str_detect(FAMILY, "CHIRONOMIDAE") ~ "chironomidae",
+      str_detect(ORDER, "LUMBRICULIDA|TUBIFICIDA") ~ "oligochaeta",
+      str_detect(PHYLUM, "MOLLUSCA") ~ "mollusca",
+      str_detect(CLASS, "MALACOSTRACA") ~ "crustacea",
+      str_detect(CLASS, "INSECTA") & !str_detect(FAMILY, "CHIRONOMIDAE") ~ "non_chiro_insecta",
+      .default = "other"
+    ),
+    GROUP = factor(GROUP, levels = c("chironomidae", "oligochaeta", "mollusca", "crustacea",
+                                     "non_chiro_insecta", "other")),
+    TOTAL = sum(REPORTING_VALUE),
+    .before = everything()
+  ) 
+
+summary_1 <- manual_1 |> 
+  summarize(
+    PCT = sum(REPORTING_VALUE) / unique(TOTAL) * 100,
+    .by = GROUP
+  )
+
+20 + 2 + 1 + 15 + 15 + 20
+
+
+
+manual_2 <- prep_df |> 
+  filter(EVENT_ID == "1_oak-5.9_1_8/5/2021_2") |> 
+  arrange(desc(REPORTING_VALUE)) |> 
+  relocate(REPORTING_VALUE)
+
+```
