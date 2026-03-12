@@ -10,11 +10,12 @@ file_dir <- file.path(
   "L:",
   "DOW",
   "BWAM Share",
-  "SMAS",
   "data",
+  "streams",
   "cleaned_files",
   "Final_Macro_ITS",
-  "20210617_S_MSTR_MACRO_SPECIES.csv"
+  "prev_versions",
+  "20210617_S_MACRO_SPECIES_DATA_HISTORY.csv"
 )
 master_updated <- readr::read_csv(file_dir,
                                  col_types = cols(
