@@ -31,13 +31,18 @@ pct_taxon <- function(Taxon, Level, long) {
 
 pma <- function(long, pma.df = pma.model){
   new <- data.frame(unique(long$EVENT_ID))
-  new$ANNELIDA <- pct_taxon("ANNELIDA", "PHYLUM", long)
+  # Oligo prep
+  new$LUMBRICULIDA <- pct_taxon("LUMBRICULIDA", "ORDER", long)
+  new$TUBIFICIDA <- pct_taxon("TUBIFICIDA", "ORDER", long)
+  new$ENCHYTRAEIDAE <- pct_taxon("ENCHYTRAEIDAE", "FAMILY", long)
+  new$OLIGOCHAETA <- new$LUMBRICULIDA + new$TUBIFICIDA + new$ENCHYTRAEIDAE
+
   new$EPHEMEROPTERA <- pct_taxon("EPHEMEROPTERA", "ORDER", long)
   new$PLECOPTERA <- pct_taxon("PLECOPTERA", "ORDER", long)
   new$COLEOPTERA <- pct_taxon("COLEOPTERA", "ORDER", long)
   new$TRICHOPTERA <- pct_taxon("TRICHOPTERA", "ORDER", long)
   new$CHIRONOMIDAE <- pct_taxon("CHIRONOMIDAE", "FAMILY", long)
-  taxa.list <- c("ANNELIDA", "EPHEMEROPTERA", "PLECOPTERA",
+  taxa.list <- c("OLIGOCHAETA", "EPHEMEROPTERA", "PLECOPTERA",
                  "COLEOPTERA", "TRICHOPTERA", "CHIRONOMIDAE")
   new$OTHER <- 100 - rowSums(new[, taxa.list])
   #============================================================================
@@ -50,7 +55,7 @@ pma <- function(long, pma.df = pma.model){
   pma.other  <- pma.df[pma.df$ORDER %in% "OTHER", 2]
   #============================================================================
 
-  pma.final <- pmin(pma.oligo, new$ANNELIDA) +
+  pma.final <- pmin(pma.oligo, new$OLIGOCHAETA) +
     pmin(pma.ephem, new$EPHEMEROPTERA) +
     pmin(pma.plecop, new$PLECOPTERA) +
     pmin(pma.coleop, new$COLEOPTERA) +
@@ -71,13 +76,18 @@ pma <- function(long, pma.df = pma.model){
 
 pma_ponar <- function(long, pma.df = pma.ponar){
   new <- data.frame(unique(long$EVENT_ID))
-  new$ANNELIDA <- pct_taxon("ANNELIDA", "PHYLUM", long)
+  # Oligo prep
+  new$LUMBRICULIDA <- pct_taxon("LUMBRICULIDA", "ORDER", long)
+  new$TUBIFICIDA <- pct_taxon("TUBIFICIDA", "ORDER", long)
+  new$ENCHYTRAEIDAE <- pct_taxon("ENCHYTRAEIDAE", "FAMILY", long)
+  new$OLIGOCHAETA <- new$LUMBRICULIDA + new$TUBIFICIDA + new$ENCHYTRAEIDAE
+
   new$MOLLUSCA <- pct_taxon("MOLLUSCA", "PHYLUM", long)
   new$MALACOSTRACA <- pct_taxon("MALACOSTRACA", "CLASS", long)
   new$INSECTA <- pct_taxon("INSECTA", "CLASS", long)
   new$CHIRONOMIDAE <- pct_taxon("CHIRONOMIDAE", "FAMILY", long)
   new$NON_CHIRO_INSECTA <- new$INSECTA - new$CHIRONOMIDAE
-  taxa.list <- c("ANNELIDA", "MOLLUSCA", "MALACOSTRACA",
+  taxa.list <- c("OLIGOCHAETA", "MOLLUSCA", "MALACOSTRACA",
                  "NON_CHIRO_INSECTA", "CHIRONOMIDAE")
   new$OTHER <- 100 - rowSums(new[, taxa.list])
   #============================================================================
@@ -89,7 +99,7 @@ pma_ponar <- function(long, pma.df = pma.ponar){
   pma.other  <- pma.df[pma.df$ORDER %in% "OTHER", 2]
   #============================================================================
 
-  pma.final <- pmin(pma.oligo, new$ANNELIDA) +
+  pma.final <- pmin(pma.oligo, new$OLIGOCHAETA) +
     pmin(pma.moll, new$MOLLUSCA) +
     pmin(pma.crust, new$MALACOSTRACA) +
     pmin(pma.nci, new$NON_CHIRO_INSECTA) +
